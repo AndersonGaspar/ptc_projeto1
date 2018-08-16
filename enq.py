@@ -23,18 +23,6 @@ class Enquadramento:
 		pacote += b'\x7E'
 		self.ser.write(pacote)
 		print('mensagem enviada\n', pacote)
-
-	def clearmgs(self, pacote):
-
-		for x in range(0, len(pacote)):
-		     if((pacote[x] == b'\x7E')or(pacote[x] == b'\x7D')):
-		        b += pacote[x]
-		     else:
-		        newpacote += pacote[x]
-		
-		#nopacote = pacote[1:-1]
-
-		print('new mgs\n', newpacote)
 	
 	def gen_CRC(self,input):
 		crc = CRC16().calculate(input)
@@ -85,10 +73,8 @@ class Enquadramento:
 		return 0
 
 	def recebe(self):
-		pacote = b''
 		while(True):
 			byte = self.ser.read()
-			pacote += byte
 			#print(byte)
 			
 			if(byte == b''):
