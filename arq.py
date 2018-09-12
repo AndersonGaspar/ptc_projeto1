@@ -1,8 +1,13 @@
 import serial
 from enum import Enum
 
+class estados(Enum):
+    OCIOSO = 1
+    TX_pay = 2
+    TX_ack = 3
+    RX = 4
+
 class eventos(Enum):
-    OCIOSO = 0
     PAYLOAD = 1   
     ACK = 2
     DADO = 3
@@ -10,46 +15,68 @@ class eventos(Enum):
 
 
 class ARQ:
-    def __init__(self, enq):
+    def __init__(self, enq, id):
         self.controle = b''
-        self.proto = b''
-        self.enq = enq(self, ser)
-        self.timeout = eventos.TIMEOUT
+        self.seq = False
+        self.proto = id
+        self.payload = b''
+        self.data = b''
+        self.estado = estados.OCIOSO
+        self.evento = None
+        self.enq = enq
        
 
     def envia(self, payload):
+        self.evento = eventos.PAYLOAD
+        handle()
 
-    def handle(self, ):
-        if(estado == TX_pay):
-            if(payload!=0):
-                self.envia(payload)
-                estado = TX_ack
-            else:
-                estado = TX_pay
+        self.payload = payload
+        if(seq):
+            self.controle = b'\x00'
+        else:
+            self.controle = b'\x08'
 
-        elif(estado == TX_ack):
-            if(self.controle == ack):
-                if(self.controle == b'\x88'):
-                    self.controle = b'\x80'               
-                else:
-                    self.controle = b'\x88'
-                estado = TX_pay
- 
-            elif(self.timeout):
-                estado = TX_ack
+        self.evento = eventos.ACK
+        handle()
+        
+        self.data = self.enq.recebe()
+        if():
+
+
+
+
+
+    def handle(self):
+        if(self.estado == estado.OCIOSO):
+            if(self.evento == eventos.PAYLOAD):
+                self.estado = estados.TX_pay
+            elif(self.evento == eventos.DADO):
+                self.estado = estados.RX
+
+        elif(estado == estados.TX_pay):
+            self.enq.envia((self.controle + self.proto + self.payload))
+            if(self.evento == eventos.ACK):
+                self.estado = estados.TX_ack
+            elif(self.evento == eventos.DADO):
+                self.estado = estados.RX
             else:
-                estado = RX
+                estado = estados.TX_pay
+    
+        elif(estado == estados.TX_ack):
+            if(self.evento == eventos.PAYLOAD):
+                self.estado = estados.TX_pay
+            elif(self.evento == eventos.DADO):
+                self.estado = estados.RX
+            else:
+                estado = estados.TX_ack
            
         else:#RX
-            if(self.controle == ack):
-                if(self.controle == b'\x88'):
-                    self.controle = b'\x80'               
-                else:
-                    self.controle = b'\x88'
-                estado = RX
-
+            if(self.evento == eventos.PAYLOAD):
+                self.estado = estados.TX_pay
+            if(self.evento == eventos.ACK):
+                self.estado = estados.TX_ack
             else:
-                estado = RX
+                estado = estados.RX
    
 ##payload = controle+Proto+data
 ##quadro (M_n) = payload+CRC
