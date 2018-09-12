@@ -16,19 +16,20 @@ class eventos(Enum):
 
 class ARQ:
     def __init__(self, enq, id):
-        self.controle = b''
-        self.seq = False
-        self.proto = id
-        self.payload = b''
-        self.data = b''
-        self.estado = estados.OCIOSO
-        self.evento = None
-        self.enq = enq
+        self.controle = b'' # byte de controle
+        self.seq = True # bit de sequencia
+        self.proto = id #id definido pela aplicação ou pela arquitetura;
+        self.payload = b'' # mensagem a ser enviado
+        self.data = b'' # pacote recebido
+        self.estado = estados.OCIOSO # estado inicial
+        self.evento = None # evento nulo
+        self.enq = enq # objeto da classe enquadramento
        
 
     def envia(self, payload):
+        key = True
         self.evento = eventos.PAYLOAD
-        handle()
+        self.handle()
 
         self.payload = payload
         if(seq):
@@ -36,13 +37,48 @@ class ARQ:
         else:
             self.controle = b'\x08'
 
-        self.evento = eventos.ACK
-        handle()
+        self.handle()
+
+        while(key)
+            self.data = self.enq.recebe()
+            if(self.data[0] & 0x80):
+                self.evento = eventos.ACK
+                self.handle()
+                if((self.data[0] & 0x08) == (self.controle & 0x08)):
+                    self.evento = eventos.PAYLOAD
+                    key = False
+                else:
+                    self.evento = eventos.ACK
+                self.handle()
+            else:
+                self.evento = eventos.DADO
+                self.handle()
         
-        self.data = self.enq.recebe()
-        if():
+        self.estado = estados.OCIOSO
+        return 1
 
 
+    def recebe(self):
+        key = True
+        self.evento = eventos.DADO
+        self.handle()
+
+        while(key)
+            self.data = self.enq.recebe()
+            if(self.data < 0):
+                self.estado = estados.OCIOSO
+                return self.data 
+            else:
+                if(self.data[0] & 0x80):
+                    self.evento = eventos.ACK
+                    self.handle()
+                else:
+                    self.evento = eventos.DADO
+                    self.handle()
+                    key = False
+        
+        self.estado = estados.OCIOSO
+        return 1
 
 
 
@@ -73,9 +109,10 @@ class ARQ:
         else:#RX
             if(self.evento == eventos.PAYLOAD):
                 self.estado = estados.TX_pay
-            if(self.evento == eventos.ACK):
+            elif(self.evento == eventos.ACK):
                 self.estado = estados.TX_ack
             else:
+                self.enq.envia(((self.data[0] | 0x80) + self.data[1]))
                 estado = estados.RX
    
 ##payload = controle+Proto+data
