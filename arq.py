@@ -27,15 +27,23 @@ class ARQ:
        
 
     def envia(self, payload):
-        key = True
+        self.payload = payload
         self.evento = eventos.PAYLOAD
         self.handle()
 
-        self.payload = payload
-        if(seq):
-            self.controle = b'\x00'
-        else:
-            self.controle = b'\x08'
+        while(self.estado != estados.OCIOSO):
+            self.data = self.enq.recebe()
+            if(timeout):
+                self.evento = eventos.TIMEOUT
+                self.handle()
+            else:
+                if(self.data[0] & 0x80):
+                    self.evento = eventos.ACK
+                else:
+                    self.evento = eventos.DADO
+                self.handle()
+
+
 
         self.handle()
 
@@ -78,25 +86,42 @@ class ARQ:
                     key = False
         
         self.estado = estados.OCIOSO
-        return 1
+        return self.data[2:]
 
 
+    def payload_transition(self):
+        if(self.seq):
+            self.controle = b'\x00'
+        else:
+            self.controle = b'\x08'
+        self.seq = not(self.seq)
+        self.enq.envia((self.controle + self.proto + self.payload))
+
+    def ack_transition(self):
+        if(self.seq):
+            self.controle = b'\x00'
+        else:
+            self.controle = b'\x08'
+        self.seq = not(self.seq)
+        self.enq.envia((self.controle + self.proto + self.payload))
 
     def handle(self):
         if(self.estado == estado.OCIOSO):
             if(self.evento == eventos.PAYLOAD):
                 self.estado = estados.TX_pay
+                self.payload_transition()
+                
             elif(self.evento == eventos.DADO):
                 self.estado = estados.RX
 
         elif(estado == estados.TX_pay):
-            self.enq.envia((self.controle + self.proto + self.payload))
             if(self.evento == eventos.ACK):
                 self.estado = estados.TX_ack
             elif(self.evento == eventos.DADO):
                 self.estado = estados.RX
             else:
                 estado = estados.TX_pay
+                self.payload_transition()
     
         elif(estado == estados.TX_ack):
             if(self.evento == eventos.PAYLOAD):
