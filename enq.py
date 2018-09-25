@@ -1,4 +1,5 @@
 import serial
+import select
 import crc
  
 
@@ -43,10 +44,11 @@ class Enquadramento:
 				self.estado = 'esc'
 			elif((byte_recv == b'\x7E') and (self.n_bytes==0)):
 				self.estado = 'recebe'
-			#elif(timeout): 
-			#	self.n_bytes = 0
-			#	self.estado = 'ocioso'
-			#	return -1
+			elif(byte_recv == None): 
+				print("Timeout\n")
+				self.n_bytes = 0
+				self.estado = 'ocioso'
+				return -3
 			elif((byte_recv == b'\x7E') and (self.n_bytes>0)):	
 				self.estado = 'ocioso'
 				return 1
@@ -56,10 +58,13 @@ class Enquadramento:
 
 		elif(self.estado == 'esc'):
 
-			if((byte_recv == b'\x7D') or (byte_recv == b'\x7E')):# timeout
+			if((byte_recv == b'\x7D') or (byte_recv == b'\x7E') or (byte_recv == None)):# timeout
 				self.buff = b''
 				self.estado = 'ocioso'
-				return -2 
+				if(byte_recv == None):
+					return -3
+				else:
+					return -2 
 			else:#(byte_com)
 				self.n_bytes += 1
 				self.buff += (int.from_bytes(byte_recv, 'big') ^ 0x20 ).to_bytes(1, 'big')
@@ -69,9 +74,16 @@ class Enquadramento:
 
 	def recebe(self):
 		while(True):
-			byte = self.ser.read()
-			#print(byte)
-			
+			(r,w,e) = select.select([self.ser], [], [], 0.05)
+			if(not(r)):
+				self.handle(None)
+				byte = None
+				if(self.n_bytes > 0):
+					return -3
+
+			else:
+				byte = r[0].read()
+
 			if(byte == b''):
 				self.estado = 'ocioso'
 				return -1
@@ -86,5 +98,4 @@ class Enquadramento:
 				return key
 			else:
 				pass
-		print(self.buff)
 		return self.buff
