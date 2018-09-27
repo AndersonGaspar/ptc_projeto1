@@ -26,7 +26,7 @@ class Enquadramento:
 
 		pacote += b'\x7E'
 		self.ser.write(pacote)
-		print('mensagem enviada\n', pacote)
+		#print('mensagem enviada\n', pacote)
 
 	def handle(self, byte_recv):
 
@@ -45,7 +45,6 @@ class Enquadramento:
 			elif((byte_recv == b'\x7E') and (self.n_bytes==0)):
 				self.estado = 'recebe'
 			elif(byte_recv == None): 
-				print("Timeout\n")
 				self.n_bytes = 0
 				self.estado = 'ocioso'
 				return -3
@@ -79,23 +78,22 @@ class Enquadramento:
 				self.handle(None)
 				byte = None
 				if(self.n_bytes > 0):
-					return -3
+					return (-3, None)
 
 			else:
 				byte = r[0].read()
 
 			if(byte == b''):
 				self.estado = 'ocioso'
-				return -1
+				return (-1, None)
 			key = self.handle(byte)
 			if(key):
-				print(self.buff)
-				if(crc.CRC16(self.buff[0:len(self.buff)-2]).check_crc()):
+				if(crc.CRC16(self.buff[0:]).check_crc()):
 					break
 				else:
-					return -2
+					return (-2,None)
 			elif(key < 0):
-				return key
+				return (key,None)
 			else:
 				pass
-		return self.buff
+		return (1, self.buff[0:len(self.buff)-2])
