@@ -13,10 +13,9 @@ class eventos(Enum):
 
 
 class ARQ:
-    def __init__(self, enq, id, session):
+    def __init__(self, enq, session):
         self.controle = b'' # byte de controle
         self.seq = False # bit de sequencia
-        self.proto = id #id definido pela aplicação ou pela arquitetura;
         self.session = session # id da sessao
         self.payload = b'' # mensagem a ser enviado
         self.data = b'' # pacote recebido
@@ -78,14 +77,12 @@ class ARQ:
         else:
             self.controle = b'\x00'
         self.seq = not(self.seq)
-        self.enq.envia(self.controle + self.proto.to_bytes(1, byteorder='big')  
-                         + self.session.to_bytes(1, byteorder='big')+ self.payload)
+        self.enq.envia(self.controle + self.session.to_bytes(1, byteorder='big')+ self.payload)
 
     def envia_ack(self):
         # Checkar sitaxe.
         self.enq.envia((self.data[1][0] + 0x80).to_bytes(1, byteorder='big')+ 
-                        self.data[1][1].to_bytes(1, byteorder='big') + 
-                        self.data[1][2].to_bytes(1, byteorder='big'))
+                        self.data[1][1].to_bytes(1, byteorder='big'))
 
     def handle(self):
         if(self.estado == estados.OCIOSO):
