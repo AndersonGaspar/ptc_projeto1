@@ -41,12 +41,13 @@ class ARQ:
                     return -3
                     
             else:
-                self.n_tentativas = 0
-                if(self.data[1][0] & 0x80):
-                    self.evento = eventos.ACK
-                else:
-                    self.evento = eventos.DADO
-                self.handle()
+                if(self.data[1][1] == self.session):
+                    self.n_tentativas = 0
+                    if(self.data[1][0] & 0x80):
+                        self.evento = eventos.ACK
+                    else:
+                        self.evento = eventos.DADO
+                    self.handle()
 
         return 1
 
@@ -61,12 +62,13 @@ class ARQ:
                 if(response[0] == -3):
                     return (-3,None)
             else:
-                self.n_tentativas = 0
-                if(self.data[1][0] & 0x80):
-                    self.evento = eventos.ACK
-                else:
-                    self.evento = eventos.DADO
-                self.handle()
+                if(self.data[1][1] == self.session):
+                    self.n_tentativas = 0
+                    if(self.data[1][0] & 0x80):
+                        self.evento = eventos.ACK
+                    else:
+                        self.evento = eventos.DADO
+                    self.handle()
 
         return (1, self.data[1][3:])
 
