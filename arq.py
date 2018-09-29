@@ -39,8 +39,11 @@ class ARQ:
                 response = self.handle()
                 if(response == -3):
                     return -3
-                    
-            else:
+            
+
+            elif(self.data[0] > 0):
+                #print(self.data)
+                #print(self.data[1][1])
                 if(self.data[1][1] == self.session):
                     self.n_tentativas = 0
                     if(self.data[1][0] & 0x80):
@@ -62,6 +65,7 @@ class ARQ:
                 if(response[0] == -3):
                     return (-3,None)
             else:
+                #print(self.data[1][1])
                 if(self.data[1][1] == self.session):
                     self.n_tentativas = 0
                     if(self.data[1][0] & 0x80):
@@ -70,7 +74,7 @@ class ARQ:
                         self.evento = eventos.DADO
                     self.handle()
 
-        return (1, self.data[1][3:])
+        return (1, self.data[1][2:])
 
 
     def envia_quadro(self):

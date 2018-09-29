@@ -78,22 +78,25 @@ class Enquadramento:
 				self.handle(None)
 				byte = None
 				if(self.n_bytes > 0):
-					return (-3, None)
-
+					return (-3, [None, None])
+					#print((-3, [None, None]))
 			else:
 				byte = r[0].read()
-
 			if(byte == b''):
 				self.estado = 'ocioso'
-				return (-1, None)
+				return (-1, [None, None])
+				#print((-1, [None, None]))
 			key = self.handle(byte)
-			if(key):
+			if(key):					
 				if(crc.CRC16(self.buff[0:]).check_crc()):
 					break
 				else:
-					return (-2,None)
+					return (-2, [None, None])
+					#print((-2, [None, None]))
 			elif(key < 0):
-				return (key,None)
+				return (key, [None, None])
+				#print((key, [None, None]))
 			else:
 				pass
+		#print(1, self.buff[0:len(self.buff)-2])
 		return (1, self.buff[0:len(self.buff)-2])
