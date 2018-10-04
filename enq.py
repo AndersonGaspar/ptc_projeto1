@@ -8,10 +8,14 @@ class Enquadramento:
 	def __init__(self, ser):
 		self.ser = ser
 		self.buff = b''
+		self.timeout = 0.05
 		self.n_bytes = 0
 		self.estado = 'ocioso'
 		self.controle = b''
 		self.proto = b''
+
+	def set_Timeout(self, timeout):
+		self.timeout = timeout
 
 	def envia(self, byt):        
 		pacote = b'\x7E'
@@ -73,30 +77,30 @@ class Enquadramento:
 
 	def recebe(self):
 		while(True):
-			(r,w,e) = select.select([self.ser], [], [], 0.05)
+			if(self.estado == 'ocioso'):
+				(r,w,e) = select.select([self.ser], [], [], self.timeout)
+			else:
+				(r,w,e) = select.select([self.ser], [], [], 0.05)
+
 			if(not(r)):
 				self.handle(None)
 				byte = None
 				if(self.n_bytes > 0):
 					return (-3, [None, None])
-					#print((-3, [None, None]))
 			else:
 				byte = r[0].read()
 			if(byte == b''):
 				self.estado = 'ocioso'
 				return (-1, [None, None])
-				#print((-1, [None, None]))
 			key = self.handle(byte)
 			if(key):					
 				if(crc.CRC16(self.buff[0:]).check_crc()):
+					print(self.buff)
 					break
 				else:
 					return (-2, [None, None])
-					#print((-2, [None, None]))
 			elif(key < 0):
 				return (key, [None, None])
-				#print((key, [None, None]))
 			else:
 				pass
-		#print(1, self.buff[0:len(self.buff)-2])
 		return (1, self.buff[0:len(self.buff)-2])

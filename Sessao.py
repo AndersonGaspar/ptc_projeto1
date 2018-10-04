@@ -43,9 +43,6 @@ class Sessao:
 		self.buffer = b''
 		self.n_tentativas = 0
 
-	def set_Timeout(timeout):
-		(r,w,e) = select.select([self.arq.enq.ser], [], [], timeout)
-
     def connect(self):
     	self.evento = eventos.CR
     	self.handle()
@@ -60,7 +57,6 @@ class Sessao:
 					self.handle()
 
 			else:
-				self.data = self.data.read()
 				self.n_tentativas = 0
 				if (self.data[1][0] == b'\xFF'):
 					if (self.data[1][1] == b'\x01'):

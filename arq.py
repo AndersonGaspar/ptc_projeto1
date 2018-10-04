@@ -1,5 +1,4 @@
 import serial
-import select
 from enum import Enum
 
 class estados(Enum):
@@ -26,9 +25,8 @@ class ARQ:
         self.enq = enq # objeto da classe enquadramento
         self.n_tentativas = 0 # numero de tentativas de trasmissao
        
-    def set_Timeout():
-        (r,w,e) = select.select([self.enq.ser], [], [], 1)
-        return r
+    def bytes(data):
+        return data.to_bytes(1, byteorder='big')
 
     def envia(self, payload):
         self.payload = payload
@@ -36,34 +34,24 @@ class ARQ:
         self.handle()
 
         while(self.estado != estados.OCIOSO):
-            self.data = set_Timeout()
-            
-            if(not(self.data)): # Timeout ARQ 1s
+            self.enq.set_Timeout(1)
+            self.data = self.enq.recebe()
+            if(self.data == -3):
                 self.evento = eventos.TIMEOUT
                 response = self.handle()
                 if(response == -3):
                     return -3
-            else:
-                self.data = self.data.read()
+            
 
-                if(self.data == -3):# Timeout enquadramento 50ms
-                    self.evento = eventos.TIMEOUT
-                    response = self.handle()
-                    if(response == -3):
-                        return -3
-                
-
-                elif(self.data[0] > 0):
-                    if(self.data[1][1] == self.session):
-                        self.n_tentativas = 0
-                        if(self.data[1][0] & 0x80):
-                            self.evento = eventos.ACK
-                        else:
-                            self.evento = eventos.DADO
-                        self.handle()
-        
+            elif(self.data[0] > 0):
+                #if(self.data[1][1] == self.session):
+                self.n_tentativas = 0
+                if(self.data[1][0] & 0x80):
+                    self.evento = eventos.ACK
+                else:
+                    self.evento = eventos.DADO
+                self.handle()
         self.seq_N = not(self.seq_N)
-
         return 1
 
 
@@ -76,14 +64,14 @@ class ARQ:
                 response =self.handle()
                 if(response[0] == -3):
                     return (-3,None)
-            else:
-                if(self.data[1][1] == self.session):
-                    self.n_tentativas = 0
-                    if(self.data[1][0] & 0x80):
-                        self.evento = eventos.ACK
-                    else:
-                        self.evento = eventos.DADO
-                    self.handle()
+            elif(self.data[0] > 0):
+                #if(self.data[1][1] == self.session):
+                self.n_tentativas = 0
+                if(self.data[1][0] & 0x80):
+                    self.evento = eventos.ACK
+                else:
+                    self.evento = eventos.DADO
+                self.handle()
 
         return (1, self.data[1][2:])
 
@@ -96,9 +84,10 @@ class ARQ:
         self.enq.envia(self.controle + self.session.to_bytes(1, byteorder='big')+ self.payload)
 
     def envia_ack(self):
-        self.enq.envia((self.data[1][0] + 0x80).to_bytes(1, byteorder='big')+ 
+        self.enq.envia((self.data[1][0] + 0x80).to_bytes(1, byteorder='big') + 
                         self.data[1][1].to_bytes(1, byteorder='big'))
-        if(self.data[1][0] & (self.seq_M << 3)):
+
+        if(bool(self.data[1][0] & (1 << 3)) == self.seq_M):
             self.seq_M = not(self.seq_M)
             return 1
         else:
@@ -109,7 +98,6 @@ class ARQ:
             if(self.evento == eventos.PAYLOAD):
                 self.envia_quadro()
                 self.estado = estados.ACK
-                self.set_Timeout()
                 
             elif(self.evento == eventos.DADO):
                 if(not(self.envia_ack())):                
@@ -126,12 +114,11 @@ class ARQ:
                 if((self.data[1][0] & 0x08) == (int.from_bytes(self.controle, 'big') & 0x08)):
                     self.estado = estados.OCIOSO
                 else:
-                    self.envia_quadro()
-                    self.set_Timeout()
+                    pass
             elif(self.evento == eventos.DADO):
                 if(not(self.envia_ack())):                
                     self.evento = None
-
+            
             elif(self.evento == eventos.TIMEOUT):
                 self.n_tentativas += 1
                 if(self.n_tentativas == 3):
