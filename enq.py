@@ -95,7 +95,7 @@ class Enquadramento:
 			key = self.handle(byte)
 			if(key):					
 				if(crc.CRC16(self.buff[0:]).check_crc()):
-					print(self.buff)
+					#print(self.buff)
 					break
 				else:
 					return (-2, [None, None])
