@@ -16,7 +16,7 @@ while(True):
     print('   1 - Enviar mensagem \n')
     print('   2 - Sair\n')
     
-    option = input('Escolha uma opção\n')
+    option = input('Escolha uma opção: \n')
     
     if(option == '1'):
         msg = intup('Digite sua mensagem: \n')
