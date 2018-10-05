@@ -5,10 +5,11 @@ import crc
 
 class Enquadramento:
 	
-	def __init__(self, ser):
+	def __init__(self, ser, maxbytes=256):
 		self.ser = ser
 		self.buff = b''
-		self.timeout = 0.05
+		self.timeout = 0
+		self.maxbytes = maxbytes
 		self.n_bytes = 0
 		self.estado = 'ocioso'
 		self.controle = b''
@@ -18,9 +19,11 @@ class Enquadramento:
 		self.timeout = timeout
 
 	def envia(self, byt):        
+		if(len(byt) > self.maxbytes):
+			return -1
+
 		pacote = b'\x7E'
 		msg = crc.CRC16(byt).gen_crc()
-
 		for x in range(0, len(msg)):
 		    if((msg[x]== int.from_bytes(b'\x7E', byteorder='big')) or (msg[x] == int.from_bytes(b'\x7D', byteorder='big'))):
 		        pacote += b'\x7D'
@@ -31,6 +34,7 @@ class Enquadramento:
 		pacote += b'\x7E'
 		self.ser.write(pacote)
 		#print('mensagem enviada\n', pacote)
+		return 1
 
 	def handle(self, byte_recv):
 
@@ -39,6 +43,10 @@ class Enquadramento:
 				self.buff = b''
 				self.n_bytes = 0
 				self.estado = 'recebe'
+			elif(byte_recv == None): 
+				self.n_bytes = 0
+				self.estado = 'ocioso'
+				return -3
 			else:
 				self.estado = 'ocioso'
 
@@ -75,28 +83,33 @@ class Enquadramento:
 
 		return 0
 
+	def timeout_rx(self, timeout):
+		(r,w,e) = select.select([self.ser], [], [], timeout)
+		if(not(r)):
+			byte = None
+		else:
+			byte = r[0].read()
+
+		return(byte)
+
 	def recebe(self):
 		while(True):
-			if(self.estado == 'ocioso'):
-				(r,w,e) = select.select([self.ser], [], [], self.timeout)
-			else:
-				(r,w,e) = select.select([self.ser], [], [], 0.05)
-
-			if(not(r)):
-				self.handle(None)
-				byte = None
-				if(self.n_bytes > 0):
-					return (-3, [None, None])
-			else:
-				byte = r[0].read()
-			if(byte == b''):
-				self.estado = 'ocioso'
-				return (-1, [None, None])
+			if(self.estado == 'ocioso' and self.timeout):
+				byte = self.timeout_rx(self.timeout)
+			elif(self.estado != 'ocioso'):
+				byte = self.timeout_rx(0.05)
+			elif(not(self.timeout)):
+				byte = self.ser.read()
+			
 			key = self.handle(byte)
-			if(key):					
+			if(self.n_bytes > self.maxbytes):
+				self.handle(None)
+				key = -1
+			
+			if(key == 1):		
 				if(crc.CRC16(self.buff[0:]).check_crc()):
-					#print(self.buff)
-					break
+					#print(self.buff[0:len(self.buff)-2])
+					return (1, self.buff[0:len(self.buff)-2])
 				else:
 					return (-2, [None, None])
 			elif(key < 0):

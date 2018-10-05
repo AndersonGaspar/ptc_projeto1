@@ -1,5 +1,6 @@
 import arq
 from enum import Enum
+import time
 
 # Half1 ?Data
 # Keep ALive
@@ -26,38 +27,38 @@ class eventos(Enum):
 	DATA = 9
 	_DATA = 10
 
-class Timeouts(Enum):
-	CC = 10 
-	KC = 10
-	DR = 10
-	DATA = 10
-	DC = 30
-
 class Sessao:
 	
-	def __init__(self, arq, id_sessao):
+	def __init__(self, arq, id_proto):
 		self.estado = estados.DISC
 		self.evento = None
 		self.arq = arq
-		self.id_proto = b'\x00'
+		self.id_proto = id_proto.to_bytes(1, byteorder='big')
 		self.payload = b''
-		self.id_sessao = id_sessao
 		self.buffer = b''
 		self.n_tentativas = 0
+		self.timeouts = {	'CC' : 2, 
+							'KC' : 2,
+							'DR' : 2,
+							'DATA' : 2,
+							'DC' : 3}
 
 	def connect(self):
 		self.evento = eventos.CR
 		self.handle()
 		while(self.estado != estados.CON):
-			#self.arq.enq.set_Timeout(Timeouts.CC)
+			self.arq.set_Timeout(self.timeouts['CC'])
 			self.data = self.arq.recebe()
+			#print("Sessão", self.data)
 			if(self.data[0] == -3): # Timeout CC
 				self.evento = eventos.TIMEOUT
+				#print("Timeout")
 				response = self.handle()
 				if(response == -3):
 					self.n_tentativas = 0
 					self.evento = eventos.ERROR
 					self.handle()
+					return -3
 
 			else:
 				self.n_tentativas = 0
@@ -65,6 +66,8 @@ class Sessao:
 					if (self.data[1][1].to_bytes(1, byteorder='big') == b'\x01'):
 						self.evento = eventos.CC
 						self.handle()
+		
+		return 1
 
 	def envia(self, payload):
 		self.payload = payload
@@ -75,7 +78,7 @@ class Sessao:
 		self.evento = eventos.DR
 		self.handle()
 		while(self.estado != estados.DISC):
-			#self.arq.enq.set_Timeout(Timeouts.DR)
+			self.arq.set_Timeout(self.timeouts['DR'])
 			self.data = self.arq.recebe()
 			if(self.data[0] == -3): # Timeout DR
 				self.evento = eventos.TIMEOUT
@@ -84,13 +87,18 @@ class Sessao:
 					self.n_tentativas = 0
 					self.evento = eventos.ERROR
 					self.handle()
+					return -3
 			else:
 				if (self.data[1][0].to_bytes(1, byteorder='big') == b'\xFF'):
 					if(self.data[1][1].to_bytes(1, byteorder='big') == b'\x04'):
 						self.evento = eventos._DR
 						self.handle()
+						return 1
 
 	def recebe(self):
+		#print('recebe')
+		self.buffer = b''
+		#print('Buffer', self.buffer)
 		while(True):
 			while (self.estado != estados.HAND2):
 				self.data = self.arq.recebe()
@@ -100,23 +108,25 @@ class Sessao:
 					self.handle()
 
 			while (self.estado != estados.CON):
-				#self.arq.enq.set_Timeout(Timeouts.CC)
+				#print('Here')
+				self.arq.set_Timeout(self.timeouts['CC'])
 				self.data = self.arq.recebe()
+				#print('Sessão', self.data)
 				if(self.data[0] == -3): # Timeout CC
 					self.evento = eventos.TIMEOUT
 					self.handle()
 					if(self.estado == estados.DISC):
-						break
+						return -3
 				elif(self.data[1][0].to_bytes(1, byteorder='big') == self.id_proto):
 					self.buffer += self.data[1][1:]
 					self.evento = eventos.DATA
 					self.handle()
 
 			while(self.estado != estados.DISC):
-				#if(self.estado == estado.CON):
-					#self.arq.enq.set_Timeout(Timeouts.DATA)
-				#else:
-					#self.arq.enq.set_Timeout(Timeouts.DC)
+				if(self.estado == estados.CON):
+					self.arq.set_Timeout(self.timeouts['DATA'])
+				else:
+					self.arq.set_Timeout(self.timeouts['DC'])
 			
 				self.data = self.arq.recebe()
 				if(self.data[0] == -3):
@@ -139,7 +149,10 @@ class Sessao:
 							(self.data[1][1].to_bytes(1, byteorder='big') == b'\x05')):
 						self.evento = eventos.DC
 						self.handle()
+						self.arq.reset()
+						#print('Sessao',  self.buffer)
 						return((1, self.buffer))
+						
 
 
 
@@ -153,6 +166,7 @@ class Sessao:
 
 			elif(self.evento == eventos.CC):
 				self.estado = estados.HAND2
+				#time.sleep(25)
 				self.arq.envia(b'\xFF\x01')
 
 		elif(self.estado == estados.HAND1):
@@ -164,9 +178,10 @@ class Sessao:
 				self.estado = estados.DISC
 			
 			elif(self.evento == eventos.TIMEOUT):
+				self.arq.envia(b'\xFF\x00')
 				self.estado = estados.HAND1
 				self.n_tentativas += 1
-				if(self.n_tentativas == 3):
+				if(self.n_tentativas >= 3):
 					return -3
 
 		elif(self.estado == estados.HAND2):
@@ -175,6 +190,7 @@ class Sessao:
 
 			elif(self.evento == eventos.TIMEOUT):
 				self.estado = estados.DISC
+				return -3
 
 		elif(self.estado == estados.CON):
 			if(self.evento == eventos.KR):
@@ -219,7 +235,7 @@ class Sessao:
 				if(self.evento == eventos.TIMEOUT):
 					self.arq.envia(b'\xFF\x04')
 					self.n_tentativas += 1
-					if(self.n_tentativas == 3):
+					if(self.n_tentativas >= 3):
 						return -3
 
 				self.estado = estados.HALF1
