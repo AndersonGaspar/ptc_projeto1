@@ -12,9 +12,9 @@ print(' +++ PROTOCOLO DE ENLACE 3000 +++ \n')
 time.sleep(1)
 
 while(True):
-    print('\n\n''Menu: \n')
-    print('   1 - Enviar mensagem \n')
-    print('   2 - Sair\n')
+    print(' +++ Menu: \n')
+    print(' +++ 1 - Enviar mensagem \n')
+    print(' +++ 2 - Sair\n')
     
     option = input('Escolha uma opção: \n')
     
